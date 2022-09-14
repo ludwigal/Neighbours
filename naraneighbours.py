@@ -52,7 +52,7 @@ def update(screen, cells, size , with_progress=False):
              #   updated_cells[row,col] = 1
               #  if with_progress:
                #     color = COLOR_ALIVE_NEXT
-            elif cellcountwhite > 1:
+            elif cellcountwhite > 2:
                 updated_cells[row, col] = 1
                 if with_progress:
                     color = COLOR_ALIVE_NEXT
@@ -131,7 +131,7 @@ def main():
                     running=False
             if pygame.mouse.get_pressed()[0]:
                 pos = pygame.mouse.get_pos()
-                cells[pos[1] // 10, pos[0] // 10] = 1
+                cells[pos[0] // 10, pos[0] // 10] = 1
                 update(screen, cells, 10)
                 pygame.display.update()
 
