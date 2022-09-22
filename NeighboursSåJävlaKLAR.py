@@ -86,14 +86,14 @@ class NeighborsModel:
         self.world: List[List[Actor]] = temporary_list
 
 
-    def neighbours_count(self,row_num,col_num,center_element):
+    def neighbours_count(self,row_num,col_num,middle_actor):
         neighbours_count_list: List[Actor] = []
         start_row_num, end_row_num = (max(0, row_num - 1), min(self.SIDE, row_num + 2))
         start_col_num, end_col_num = (max(0, col_num - 1), min(self.SIDE, col_num + 2))
         for i in range(start_row_num, end_row_num):
             for j in range(start_col_num, end_col_num):
                 if not (i == row_num and j == col_num):
-                    if self.world[i][j] == Actor.NONE:
+                    if middle_actor == Actor.NONE:
                         break
                     if self.world[i][j] == Actor.RED:
                         neighbours_count_list.append(Actor.RED)
