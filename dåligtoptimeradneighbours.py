@@ -27,7 +27,7 @@ class State(Enum):
 
 World = List[List[Actor]]  # Type alias
 
-SIZE = 90000
+SIZE = 15000
 
 
 def neighbours():
@@ -37,7 +37,7 @@ def neighbours():
     model.run()
 
 
-def create_flat_list(size):
+def create_flat_list(size): # Skapar en lista med distrubition av röda, blå och empty actors, som sedan shufflas för att få slumpmässiga koordinater för varje
     all_red = [Actor.RED] * int(size * NeighborsModel.DIST[0])
     all_blue = [Actor.BLUE] * int(size * NeighborsModel.DIST[1])
     all_none = [Actor.NONE] * int(size * NeighborsModel.DIST[2])
@@ -50,7 +50,7 @@ class NeighborsModel:
     # Tune these numbers to test different distributions or update speeds
     SIDE = 0
     FRAME_RATE = 20  # Increase number to speed simulation up
-    DIST = [0.25, 0.25, 0.5]  # % of RED, BLUE, and NONE
+    DIST = [0.4, 0.4, 0.2]  # % of RED, BLUE, and NONE
     THRESHOLD = 0.7  # % of surrounding neighbours that should be like me for satisfaction
 
     # ########### These following two methods are what you're supposed to implement  ###########
@@ -58,30 +58,31 @@ class NeighborsModel:
     # using randomization according to the given arguments.
     @staticmethod
     def __create_world(size) -> World:
-        flat_list_actors = create_flat_list(size)
-        NeighborsModel.SIDE = int(sqrt(size))
+        flat_list_actors = create_flat_list(size) 
+        NeighborsModel.SIDE = int(sqrt(size)) # Bredd och höjd på programmet baserat på size, vi har använt size som det totala antalet "pixlar" eller "celler".
         brave_new_world = NeighborsModel.create_new_matrix(flat_list_actors)
         # TODO Create and populate world according to NeighborsModel.DIST distribution parameters
         return brave_new_world
 
     @staticmethod
-    def create_new_matrix(flat_list_actors):
+    def create_new_matrix(flat_list_actors): # Här gör vi om den plana listan till en matrix med bredden sqrt(size)
         new_matrix = [flat_list_actors[row_count * NeighborsModel.SIDE:(row_count + 1) * NeighborsModel.SIDE] for
                       row_count in range(NeighborsModel.SIDE)]
         return new_matrix
 
     # This is the method called by the timer to update the world
     # (i.e move unsatisfied) each "frame".
+
     def __update_world(self):
         none_list_coordinates = []
-        temporary_list: List[List[Actor]] = copy.deepcopy(self.world)
+        temporary_list: List[List[Actor]] = copy.deepcopy(self.world) # Vi gör en kopia av self.world, som inte ändras när self.world ändras.
         unsatisfied: List[tuple[int, int]] = []
         for row_num in range(self.SIDE):
-            for col_num in range(self.SIDE):
+            for col_num in range(self.SIDE): #Går igenom varje "cell" eller "pixel".
                 if self.world[row_num][col_num] == Actor.NONE:
                     none_list_coordinates.append([row_num, col_num])
-                unsatisfied = self.neighbourhood_check(row_num, col_num, unsatisfied)
-        temporary_list = self.switch_pos(none_list_coordinates, unsatisfied, temporary_list)
+                unsatisfied = self.neighbourhood_check(row_num, col_num, unsatisfied) # Kollar grannarna för varje "cell" och om de är satisfied eller ej.
+        temporary_list = self.switch_pos(none_list_coordinates, unsatisfied, temporary_list) #Vi byter position på "cellerna"
         self.world: List[List[Actor]] = temporary_list
 
 
@@ -98,7 +99,7 @@ class NeighborsModel:
         nr_of_blue = 0
         nr_of_red = 0
         nr_of_none = 0
-        for i in range(start_row_num, end_row_num):
+        for i in range(start_row_num, end_row_num): 
             for j in range(start_col_num, end_col_num):
                 if not (i == row_num and j == col_num):
                     if self.world[i][j] == Actor.RED:
@@ -107,41 +108,54 @@ class NeighborsModel:
                         nr_of_blue += 1
                     elif self.world[i][j] == Actor.NONE:
                         nr_of_none += 1
+                        # Kollar "grannarna" för varje "cell" och räknar dem.
         colortotal = 8 - nr_of_none
         if colortotal == 0:
             colortotal = 1
-        if self.world[row_num][col_num] == Actor.RED:
-            satisfiedrod = self.satisfiedred(nr_of_blue, colortotal)
-            if satisfiedrod < self.THRESHOLD:
-                unsatisfied.append((row_num, col_num))
 
+        unsatisfied = self.unsatisfiedred(row_num, col_num, unsatisfied, nr_of_blue, colortotal)
+
+        unsatisfied = self.unsatisfiedblue(row_num, col_num, unsatisfied, nr_of_red, colortotal)
+
+        return unsatisfied
+
+    def unsatisfiedblue(self, row_num, col_num, unsatisfied, nr_of_red, colortotal): # Räknar ut satisfied om current "cell" är en blå cell, och om cellen är unsatisfied läggs den i listan "unsatisfied".
         if self.world[row_num][col_num] == Actor.BLUE:
-            satisfiedbla = self.satisfiedblue(nr_of_red, colortotal)
-            if satisfiedbla < self.THRESHOLD:
+            satisfied_blue = self.check_for_satisfied_blue(nr_of_red, colortotal)
+            if satisfied_blue < self.THRESHOLD:
                 unsatisfied.append((row_num, col_num))
         return unsatisfied
 
-    def satisfiedred(self, nr_of_blue, colortotal):
+    def unsatisfiedred(self, row_num, col_num, unsatisfied, nr_of_blue, colortotal): # Räknar ut satisfied om current "cell" är en röd cell, och om cellen är unsatisfied läggs den i listan "unsatisfied".
+        if self.world[row_num][col_num] == Actor.RED:
+            satisfied_red = self.check_for_satisfied_red(nr_of_blue, colortotal)
+            if satisfied_red < self.THRESHOLD:
+                unsatisfied.append((row_num, col_num))
+        return unsatisfied
 
-        sadneighbourpercentage = (nr_of_blue / colortotal)
-        satisfiedred = 1 - sadneighbourpercentage
+    def check_for_satisfied_red(self, nr_of_blue, colortotal):
+
+        not_same_as_actor_neighbours = (nr_of_blue / colortotal)
+        satisfiedred = 1 - not_same_as_actor_neighbours
         return satisfiedred
 
-    def satisfiedblue(self, nr_of_red, colortotal):
+    def check_for_satisfied_blue(self, nr_of_red, colortotal):
 
-        sadneighbourpercentage = (nr_of_red / colortotal)
-        satisfiedblue = 1 - sadneighbourpercentage
+        not_same_as_actor_neighbours = (nr_of_red / colortotal)
+        satisfiedblue = 1 - not_same_as_actor_neighbours
         return satisfiedblue
 
-    def switch_pos(self, none_list_coordinates, unsatisfied,temporary_list):
-        shuffle(none_list_coordinates)
+    def switch_pos(self, none_list_coordinates, unsatisfied,temporary_list): # 
+        shuffle(none_list_coordinates) # Randomizar postionerna i båda listor, dvs empty platser och unsatisfied platser.
         shuffle(unsatisfied)
-        while len(none_list_coordinates) > 0 and len(unsatisfied) > 0:
-            temporary_list[none_list_coordinates[0][0]][none_list_coordinates[0][1]] = self.world[unsatisfied[0][0]][
-                unsatisfied[0][1]]
-            temporary_list[unsatisfied[0][0]][unsatisfied[0][1]] = Actor.NONE
-            none_list_coordinates.remove(none_list_coordinates[0])
-            unsatisfied.remove(unsatisfied[0])
+        while len(none_list_coordinates) > 0 and len(unsatisfied) > 0: # Tills båda listorna är tomma så byter vi platser
+            temporary_list[none_list_coordinates[0][0]][none_list_coordinates[0][1]] = self.world[unsatisfied[0][0]][unsatisfied[0][1]] # "Byter" plats på en empty plats och en unsatisfied cell
+
+            temporary_list[unsatisfied[0][0]][unsatisfied[0][1]] = Actor.NONE # Sätter den plats där den unsatisfied cellen var till Actor.NONE.
+            
+            none_list_coordinates.remove(none_list_coordinates[0]) # Vi tar bort den "använda" platsen från none_list_coordinates listan 
+
+            unsatisfied.remove(unsatisfied[0]) # Vi tar bort den "använda" platsen från unsatisfied listan
         return temporary_list
             # ########### the rest of this class is already defined, to handle the simulation clock  ###########
 
